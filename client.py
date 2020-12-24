@@ -32,12 +32,22 @@ def printTable(mydescription):
     print(tabulate(myresults, headers=columns, tablefmt ='psql'))
 
 #execute sql query
-def executeQuery(command):   
-    
+def executeQuery(command):       
     command = command + ' LIMIT 50'
-    print(command)
+    #print(command)
     mycursor.execute(command)
-    print("Command Executed")
+    #print("Command Executed")
+    mydescription = mycursor.description                
+    #print(mydescription)
+    if mydescription is not None:
+        printTable(mydescription)
+        
+#execute sql query user limit
+def executeQueryUL(command):       
+    command = command
+    #print(command)
+    mycursor.execute(command)
+    #print("Command Executed")
     mydescription = mycursor.description                
     #print(mydescription)
     if mydescription is not None:
@@ -63,8 +73,8 @@ def executeSQLFile(filename):
 #load Movie Dataset into ProjectDB
 def initDB():    
     print("Loading Database")
-    #ans = input("Do you want to use existing database, y/n?  ")
-    ans = 'y'
+    ans = input("Do you want to use existing database, y/n?  ")
+    #ans = 'y'
     
     if ans == "y":      
         print("Using existing database ProjectDB...")
@@ -263,27 +273,57 @@ def searchMovies():
     user_title = input('Enter movie name: ')
     user_genre = input('Enter genre: ')
     user_keyword = input('Enter keywords: ')
-    user_input = input('Choose an option: 1. Match all keywords or, 2. Match any keyword: ')  
 
     subquery1 = '(SELECT DISTINCT movieID FROM movies WHERE title LIKE \'%{}%\')'.format(user_title) 
     subquery2 = '(SELECT DISTINCT movieID FROM genres WHERE genre LIKE \'%{}%\')'.format(user_genre)
     subquery3 = '(SELECT DISTINCT movieID FROM keywords WHERE keyword LIKE \'%{}%\')'.format(user_keyword)
     
-    if int(user_input)==1:
-        query = 'SELECT DISTINCT * FROM (({} AS table1 INNER JOIN {} AS table2 ON table1.movieID=table2.movieID) AS table3 INNER JOIN {} AS table4 ON table3.movieID=table4.movieID)'.format(subquery1, subquery2, subquery3)   
+    if user_title and user_genre and user_keyword:
+        query = 'SELECT DISTINCT movieID, title FROM movies where movieID in (({} UNION {}) UNION {})'.format(subquery1,subquery2,subquery3)    
+    elif user_title and user_genre:
+        query = 'SELECT DISTINCT movieID, title FROM movies where movieID in ({} UNION {})'.format(subquery1,subquery2)
+    elif user_keyword and user_genre:
+        query = 'SELECT DISTINCT movieID, title FROM movies where movieID in ({} UNION {})'.format(subquery3,subquery2)
+    elif user_keyword and user_title:
+        query = 'SELECT DISTINCT movieID, title FROM movies where movieID in ({} UNION {})'.format(subquery1,subquery3)
+    elif user_title:
+        query = 'SELECT DISTINCT movieID, title FROM movies where movieID in ({})'.format(subquery1)
+    elif user_genre:
+        query = 'SELECT DISTINCT movieID, title FROM movies where movieID in ({})'.format(subquery2)
+    elif user_keyword:
+        query = 'SELECT DISTINCT movieID, title FROM movies where movieID in ({})'.format(subquery3)
     else:
-        query = 'SELECT DISTINCT * FROM (({} AS table1 OUTER JOIN {} AS table2 ON table1.movieID=table2.movieID) AS table3 OUTER JOIN {} AS table4 ON table3.movieID=table4.movieID)'.format(subquery1, subquery2, subquery3) 
+        print("No results found.")
+        return
+        
+    user_input = input('Choose an option: 1. Match all keywords or, 2. Match any keyword: ')
+    if int(user_input)==1 :
+        print("The query results are:  ")
+        executeQuery(query)
+    else:
+        print("The query results are:  ")
+        executeQuery(query)
 
-    print(query)
-    executeQuery(query)
-
-    #'SELECT DISTINCT * FROM (({} AS table1 INNER JOIN {} AS table2 ON table1.movieID=table2.movieID) AS table3 INNER JOIN {} AS table4 ON table3.movieID=table4.movieID)'.format(subquery1, subquery2, subquery3)
+  
 
 
 # Menu 2. Rate Movies
 def rateMovies():
-    pass 
-
+    os.system("clear")
+    print(" — — — — 2. Rate Movies — — — — ")    
+    if input("Are you existing user, y/n?") == 'y':
+        print("\nPlease enter following details: ")
+        user = input("User ID: ")
+        user_name= input("Name: ")
+        movie = input("Name of movie: ")
+        rating = input("Your rating out of 5: ")
+        review = input("Your review: ")
+        subquery1 = 'SELECT DISTINCT movieID FROM movies WHERE title=\'{}\''.format(movie)
+        query = 'INSERT INTO ratings (userID, movieID, rating, review) VALUES ({},({}),{},\'{}\')'.format(user, subquery1, rating, review)
+        mycursor.execute(query)
+        query ='select * from ratings where userID={} and movieID=({})'.format(user, subquery1)
+        executeQuery(query)
+        print("Review Successful")
 
 # Menu 3. Suggest Movies
 def suggestMovies():
@@ -292,7 +332,36 @@ def suggestMovies():
 
 # Menu 4. View ratings
 def viewRatings():
-    getAllUsers()
+    os.system("clear")
+    print(" — — — — 4. View Ratings — — — — ")  
+    print('1. All rating By Movie')
+    print('2. All rating By User')
+    print('3. Average rating For a Movie')
+    print('4. Average rating by User')
+    print('5. Active users, Top 10 ')
+    option = int(input('Enter option: '))
+    if option==1:
+        movie = input("Name of movie: ")
+        subquery1 = 'SELECT DISTINCT movieID FROM movies WHERE title=\'{}\''.format(movie)
+        query ='select * from ratings where movieID=({})'.format(subquery1)
+        executeQuery(query)
+    elif option ==2:
+        user = input("User ID: ")
+        query ='select * from ratings where userID={} '.format(user)
+        executeQuery(query)
+    elif option==3:
+        movie = input("Name of movie: ")
+        subquery1 = 'SELECT DISTINCT movieID FROM movies WHERE title=\'{}\''.format(movie)
+        query ='select avg(rating) as Average_Rating from ratings where movieID=({})'.format(subquery1)
+        executeQuery(query)
+    elif option==4:
+        user = input("User ID: ")
+        query ='select avg(rating) as Average_Rating from ratings where userID={} '.format(user)
+        executeQuery(query)
+    elif option==5:
+        query ='select userID, count(rating) as Rating_count from ratings Group By userID order by Rating_count desc LIMIT 10'
+        executeQueryUL(query)
+        
 
 
 # Menu 5. exit
