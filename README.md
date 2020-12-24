@@ -13,7 +13,7 @@ Files and Folders:
       v. crew_credits_df.csv
       vi. genres_df.csv
       vii. keywords_df.csv
-2. data_preparation_break_csv:
+2. data_preparation_break_csv.ipynb:
     This python scripts converts original Kaggle Movie Dataset from JSON (from inside csv) to all csv format.
 3. load_database.sql
     This file contains all necessary queries to initialize the main database. It creates eight different tables and loads data from MovieDataset to the            database.
